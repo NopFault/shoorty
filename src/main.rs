@@ -17,6 +17,8 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("cannot get the pool from sqlite");
 
+    // TODO:
+    // Refactor into normal migration
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS urls (
@@ -78,6 +80,7 @@ async fn main() -> std::io::Result<()> {
                     .to(handlers::url::create)
                     .wrap(from_fn(middlewares::auth::auth_gate)),
             )
+            .route("/{short_code}", web::get().to(handlers::url::redirect))
     })
     .bind(
         env.get("HOSTNAME")

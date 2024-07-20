@@ -25,3 +25,27 @@ pub async fn create(
     }
     Ok(HttpResponse::InternalServerError().body("Ne tavo kiskis ne tu ir kiskis"))
 }
+
+pub async fn redirect(
+    short_code: web::Path<String>,
+    pool: web::Data<SqlitePool>,
+) -> Result<HttpResponse, Error> {
+    let result = sqlx::query_as::<_, Url>(
+        "SELECT * FROM urls LEFT JOIN shorts ON shorts.id=urls.short_id WHERE shorts.short= ? LIMIT 1",
+    )
+    .bind(&short_code.as_str())
+    .fetch_optional(pool.get_ref())
+    .await;
+
+    match result {
+        Ok(Some(url)) => Ok(HttpResponse::Found()
+            .insert_header(("Location", url.url))
+            .finish()),
+        Ok(None) => Ok(HttpResponse::Found()
+            .insert_header(("Location", "https://tnyuri.com"))
+            .finish()),
+        Err(_) => Ok(HttpResponse::Found()
+            .insert_header(("Location", "https://tnyuri.com"))
+            .finish()),
+    }
+}
