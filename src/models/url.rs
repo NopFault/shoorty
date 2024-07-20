@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::{SqlitePool, Error};
+use sqlx::{Error, SqlitePool};
 
 #[derive(sqlx::FromRow, Serialize, Deserialize)]
 pub struct Short {
@@ -9,7 +9,7 @@ pub struct Short {
 
 #[derive(Serialize, Deserialize)]
 pub struct UrlRequest {
-    pub url: String
+    pub url: String,
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize)]
@@ -21,8 +21,7 @@ pub struct Url {
     pub created: chrono::DateTime<chrono::Utc>,
 }
 impl Url {
-    pub async fn create(url: String, uid: i64, pool:SqlitePool) -> Result<Url, Error> {
-
+    pub async fn create(url: String, uid: i64, pool: SqlitePool) -> Result<Url, Error> {
         if let Ok(short) = Short::get(pool.clone()).await {
             let url = sqlx::query_as::<_, Url>("INSERT INTO urls (url,short_id,user_id) VALUES (?,?,?) RETURNING id, url, short_id, user_id, created")
                 .bind(url)
@@ -38,10 +37,9 @@ impl Url {
     }
 }
 
-
 impl Short {
     pub async fn get(pool: SqlitePool) -> Result<Short, Error> {
-        let short = sqlx::query_as::<_, Short>("SELECT shorts.id, shorts.short FROM shorts LEFT JOIN urls ON shorts.id != urls.short_id LIMIT 1")
+        let short = sqlx::query_as::<_, Short>("SELECT id, short FROM shorts WHERE id NOT IN (SELECT DISTINCT short_id FROM urls) LIMIT 1")
             .fetch_one(&pool)
             .await
             .expect("Error fetching data");
