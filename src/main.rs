@@ -7,6 +7,7 @@ mod auth;
 mod handlers;
 mod middlewares;
 mod models;
+mod parsers;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -40,7 +41,7 @@ async fn main() -> std::io::Result<()> {
             short TEXT NOT NULL UNIQUE
         );
 
-        CREATE TABLE IF NOT EXISTS analytics (
+        CREATE TABLE IF NOT EXISTS statistics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             url_id INTEGER NOT NULL,
             date DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -73,7 +74,12 @@ async fn main() -> std::io::Result<()> {
                     .to(handlers::user::user_register)
                     .wrap(from_fn(middlewares::auth::root_gate)),
             )
-            .route("/url", web::get().to(handlers::url::short))
+            .route(
+                "/url/all",
+                web::get()
+                    .to(handlers::url::urls_by_user)
+                    .wrap(from_fn(middlewares::auth::auth_gate)),
+            )
             .route(
                 "/url/new",
                 web::post()

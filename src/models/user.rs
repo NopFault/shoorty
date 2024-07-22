@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use crate::auth::create_jwt;
-use sha2::{Sha256, Digest};
-use sqlx::{SqlitePool, Error};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use sqlx::{Error, SqlitePool};
 
 #[derive(Deserialize, Debug)]
 pub struct UserLoginRequest {
@@ -11,7 +11,7 @@ pub struct UserLoginRequest {
 
 #[derive(Serialize, Debug)]
 pub struct UserLoginResponse {
-    pub token: String
+    pub token: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,29 +29,37 @@ pub struct User {
 }
 
 impl User {
-    pub async fn get(credentials: UserLoginRequest, pool: SqlitePool) -> Result<UserLoginResponse, Error> {
-        let user =
-            sqlx::query_as::<_, User>("SELECT id, username, password FROM users WHERE username = ?")
-                .bind(&credentials.username)
-                .fetch_one(&pool)
-                .await
-                .expect("Error: ");
+    pub async fn get(
+        credentials: UserLoginRequest,
+        pool: SqlitePool,
+    ) -> Result<UserLoginResponse, Error> {
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, username, password FROM users WHERE username = ?",
+        )
+        .bind(&credentials.username)
+        .fetch_one(&pool)
+        .await
+        .expect("Error: ");
 
-        if User::hash_password(String::from(&credentials.password)) == String::from(&user.password) {
+        if User::hash_password(String::from(&credentials.password)) == String::from(&user.password)
+        {
             let token = create_jwt(&user.username, user.id);
             return Ok(UserLoginResponse { token });
         }
-        Ok(UserLoginResponse { token: "".to_string()})
+        Ok(UserLoginResponse {
+            token: "".to_string(),
+        })
     }
 
-    pub async fn create(credentials: UserLoginRequest, pool:SqlitePool) -> Result<User, Error> {
-
-        let user = sqlx::query_as::<_, User>("INSERT INTO users (username, password) VALUES (?, ?) RETURNING id, username, password")
-            .bind(&credentials.username)
-            .bind(User::hash_password(credentials.password.clone()))
-            .fetch_one(&pool)
-            .await
-            .expect("Error: ");
+    pub async fn create(credentials: UserLoginRequest, pool: SqlitePool) -> Result<User, Error> {
+        let user = sqlx::query_as::<_, User>(
+            "INSERT INTO users (username, password) VALUES (?, ?) RETURNING id, username, password",
+        )
+        .bind(&credentials.username)
+        .bind(User::hash_password(credentials.password.clone()))
+        .fetch_one(&pool)
+        .await
+        .expect("Error: ");
 
         Ok(user)
     }

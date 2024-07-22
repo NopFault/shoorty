@@ -1,13 +1,19 @@
 use crate::auth::get_claim_from;
-use crate::models::url::{Short, Url, UrlRequest};
+use crate::models::statistic::Statistic;
+use crate::models::url::{Url, UrlRequest};
+use crate::parsers::http::RequestParser;
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use sqlx::SqlitePool;
 
-pub async fn short(pool: web::Data<SqlitePool>) -> Result<HttpResponse, Error> {
-    if let Ok(short) = Short::get(pool.get_ref().clone()).await {
-        return Ok(HttpResponse::Ok().body(short.short));
+pub async fn urls_by_user(
+    req: HttpRequest,
+    pool: web::Data<SqlitePool>,
+) -> Result<HttpResponse, Error> {
+    if let Some(userclaim) = get_claim_from(&req) {
+        if let Ok(urls) = Url::get_by_claim(userclaim, pool.get_ref().clone()).await {
+            return Ok(HttpResponse::Ok().json(urls));
+        }
     }
-
     Ok(HttpResponse::InternalServerError().body("Ne tavo kiskis ne tu ir kiskis"))
 }
 
@@ -27,6 +33,7 @@ pub async fn create(
 }
 
 pub async fn redirect(
+    req: HttpRequest,
     short_code: web::Path<String>,
     pool: web::Data<SqlitePool>,
 ) -> Result<HttpResponse, Error> {
@@ -38,9 +45,20 @@ pub async fn redirect(
     .await;
 
     match result {
-        Ok(Some(url)) => Ok(HttpResponse::Found()
-            .insert_header(("Location", url.url))
-            .finish()),
+        Ok(Some(url)) => {
+            let parser = RequestParser::new(&req);
+            let _stats = Statistic::create(
+                url.id,
+                String::from(parser.get_ip()),
+                String::from(parser.get_ua()),
+                String::from(parser.get_referer()),
+                pool.get_ref().clone(),
+            )
+            .await;
+            Ok(HttpResponse::Found()
+                .insert_header(("Location", url.url))
+                .finish())
+        }
         Ok(None) => Ok(HttpResponse::Found()
             .insert_header(("Location", "https://tnyuri.com"))
             .finish()),
