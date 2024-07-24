@@ -32,14 +32,37 @@ pub struct UrlRow {
 }
 
 impl Url {
-    pub async fn get_by_claim(claim: UserClaim, pool: SqlitePool) -> Result<Vec<UrlRow>, Error> {
-        let urls = sqlx::query_as::<_,UrlRow>("SELECT urls.id, urls.url, shorts.short, users.username, urls.created FROM urls INNER JOIN shorts ON shorts.id=urls.short_id INNER JOIN users ON users.id=urls.user_id WHERE user_id=?")
+    pub async fn by_short_claim(
+        short_code: String,
+        claim: UserClaim,
+        pool: SqlitePool,
+    ) -> Result<UrlRow, Error> {
+        let url_row = sqlx::query_as::<_, UrlRow>("SELECT urls.id, urls.url, shorts.short, users.username as user, urls.created FROM urls LEFT JOIN shorts ON shorts.id=urls.short_id LEFT JOIN users ON users.id=urls.user_id WHERE shorts.short=? AND user_id=? LIMIT 1")
+        .bind(short_code)
+        .bind(claim.id)
+        .fetch_one(&pool)
+        .await
+        .expect("ssssss");
+
+        return Ok(url_row);
+    }
+    pub async fn by_short(short_code: String, pool: SqlitePool) -> Result<Option<UrlRow>, Error> {
+        let url_row = sqlx::query_as::<_, UrlRow>("SELECT urls.id, urls.url, shorts.short, users.username as user, urls.created FROM urls LEFT JOIN shorts ON shorts.id=urls.short_id WHERE shorts.short= ? LIMIT 1")
+        .bind(&short_code.as_str())
+        .fetch_optional(&pool)
+        .await
+        .expect("ssssss");
+
+        return Ok(url_row);
+    }
+    pub async fn by_claim(claim: UserClaim, pool: SqlitePool) -> Result<Vec<UrlRow>, Error> {
+        let url_rows = sqlx::query_as::<_,UrlRow>("SELECT urls.id, urls.url, shorts.short, users.username as user, urls.created FROM urls INNER JOIN shorts ON shorts.id=urls.short_id INNER JOIN users ON users.id=urls.user_id WHERE user_id=?")
             .bind(claim.id)
             .fetch_all(&pool)
             .await
             .expect("Error by trying to get all user short links");
 
-        Ok(urls)
+        Ok(url_rows)
     }
 
     pub async fn create(url: String, uid: i64, pool: SqlitePool) -> Result<Url, Error> {

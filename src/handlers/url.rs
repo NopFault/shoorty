@@ -5,12 +5,9 @@ use crate::parsers::http::RequestParser;
 use actix_web::{web, Error, HttpRequest, HttpResponse};
 use sqlx::SqlitePool;
 
-pub async fn urls_by_user(
-    req: HttpRequest,
-    pool: web::Data<SqlitePool>,
-) -> Result<HttpResponse, Error> {
+pub async fn get_all(req: HttpRequest, pool: web::Data<SqlitePool>) -> Result<HttpResponse, Error> {
     if let Some(userclaim) = get_claim_from(&req) {
-        if let Ok(urls) = Url::get_by_claim(userclaim, pool.get_ref().clone()).await {
+        if let Ok(urls) = Url::by_claim(userclaim, pool.get_ref().clone()).await {
             return Ok(HttpResponse::Ok().json(urls));
         }
     }
@@ -31,19 +28,26 @@ pub async fn create(
     }
     Ok(HttpResponse::InternalServerError().body("Ne tavo kiskis ne tu ir kiskis"))
 }
-
+pub async fn get(
+    req: HttpRequest,
+    short_code: web::Path<String>,
+    pool: web::Data<SqlitePool>,
+) -> Result<HttpResponse, Error> {
+    if let Some(userclaim) = get_claim_from(&req) {
+        if let Ok(url) =
+            Url::by_short_claim(short_code.to_string(), userclaim, pool.get_ref().clone()).await
+        {
+            return Ok(HttpResponse::Ok().json(url));
+        }
+    }
+    Ok(HttpResponse::InternalServerError().body("Ne tavo kiskis ne tu ir kiskis"))
+}
 pub async fn redirect(
     req: HttpRequest,
     short_code: web::Path<String>,
     pool: web::Data<SqlitePool>,
 ) -> Result<HttpResponse, Error> {
-    let result = sqlx::query_as::<_, Url>(
-        "SELECT * FROM urls LEFT JOIN shorts ON shorts.id=urls.short_id WHERE shorts.short= ? LIMIT 1",
-    )
-    .bind(&short_code.as_str())
-    .fetch_optional(pool.get_ref())
-    .await;
-
+    let result = Url::by_short(short_code.to_string(), pool.get_ref().clone()).await;
     match result {
         Ok(Some(url)) => {
             let parser = RequestParser::new(&req);

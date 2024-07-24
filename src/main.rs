@@ -75,16 +75,28 @@ async fn main() -> std::io::Result<()> {
                     .wrap(from_fn(middlewares::auth::root_gate)),
             )
             .route(
-                "/url/all",
+                "/urls",
                 web::get()
-                    .to(handlers::url::urls_by_user)
+                    .to(handlers::url::get_all)
                     .wrap(from_fn(middlewares::auth::auth_gate)),
             )
             .route(
-                "/url/new",
+                "/url/add",
                 web::post()
                     .to(handlers::url::create)
                     .wrap(from_fn(middlewares::auth::auth_gate)),
+            )
+            .route(
+                "/url/{short_code}",
+                web::get()
+                    .to(handlers::url::get)
+                    .wrap(from_fn(middlewares::auth::auth_gate)),
+            )
+            .route(
+                "/admin/users",
+                web::get()
+                    .to(handlers::user::get_all)
+                    .wrap(from_fn(middlewares::auth::root_gate)),
             )
             .route("/{short_code}", web::get().to(handlers::url::redirect))
     })

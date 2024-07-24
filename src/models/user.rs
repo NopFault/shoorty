@@ -64,6 +64,15 @@ impl User {
         Ok(user)
     }
 
+    pub async fn list(pool: SqlitePool) -> Result<Vec<User>, Error> {
+        let users = sqlx::query_as::<_, User>("SELECT * FROM users")
+            .fetch_all(&pool)
+            .await
+            .expect("Error: ");
+
+        Ok(users)
+    }
+
     fn hash_password(pass: String) -> String {
         let mut hasher = Sha256::new();
         hasher.update(pass);
