@@ -93,6 +93,12 @@ async fn main() -> std::io::Result<()> {
                     .wrap(from_fn(middlewares::auth::auth_gate)),
             )
             .route(
+                "/user",
+                web::get()
+                    .to(handlers::user::get)
+                    .wrap(from_fn(middlewares::auth::auth_gate)),
+            )
+            .route(
                 "/admin/users",
                 web::get()
                     .to(handlers::user::get_all)

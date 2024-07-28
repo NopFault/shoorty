@@ -29,7 +29,7 @@ pub struct User {
 }
 
 impl User {
-    pub async fn get(
+    pub async fn get_by_creds(
         credentials: UserLoginRequest,
         pool: SqlitePool,
     ) -> Result<UserLoginResponse, Error> {
@@ -60,6 +60,16 @@ impl User {
         .fetch_one(&pool)
         .await
         .expect("Error: ");
+
+        Ok(user)
+    }
+
+    pub async fn get(id: i64, pool: SqlitePool) -> Result<User, Error> {
+        let user = sqlx::query_as::<_, User>("SELECT * from users WHERE user.id=?")
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .expect("Error: ");
 
         Ok(user)
     }
